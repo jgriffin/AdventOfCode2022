@@ -36,7 +36,7 @@ class Day01Tests: XCTestCase {
         let topThreeTotal = topThree.reduce(0,+)
 
         XCTAssertEqual(topThree, [64495, 66757, 69693])
-        XCTAssertEqual(topThreeTotal, 200945)
+        XCTAssertEqual(topThreeTotal, 200_945)
     }
 }
 
@@ -61,14 +61,8 @@ extension Day01Tests {
     static let input = resourceURL(filename: "Day01Input.txt")!.readContents()!
 
     static let calorieParser = Int.parser(of: Substring.self)
-    static let elfParser = Parse {
-        Many(1...) { calorieParser } separator: { "\n" }
-    }
-
-    static let inputParser = Parse {
-        Many { elfParser } separator: { "\n\n" }
-        Skip { Optionally { "\n" } }
-    }
+    static let elfParser = calorieParser.many()
+    static let inputParser = elfParser.many(separator: "\n\n").skipTrailingNewlines()
 
     func testParseExample() throws {
         let result = try Self.inputParser.parse(Self.example)
