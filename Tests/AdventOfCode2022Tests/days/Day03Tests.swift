@@ -88,9 +88,9 @@ extension Day03Tests {
     static let rucksackParser = Prefix(1..., while: { $0.isLetter })
         .map(Rucksack.init)
 
-    static let rucksacksParser = rucksackParser.many().skipTrailingNewlines()
+    static let rucksacksParser = rucksackParser.manyByNewline().skipTrailingNewlines()
 
-    static let groupsParser = rucksackParser.many(length: 3).many().skipTrailingNewlines()
+    static let groupsParser = rucksackParser.manyByNewline(length: 3).manyByNewline().skipTrailingNewlines()
 
     func testParseExample() throws {
         let input = try Self.rucksacksParser.parse(Self.example)

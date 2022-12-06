@@ -10,7 +10,7 @@ public extension Parser where Input == Substring {
      */
     func many<Separator: Parser>(
         length: CountingRange = 1...,
-        separator: Separator = "\n"
+        separator: Separator
     ) -> AnyParser<Input, [Output]> where Separator.Input == Input {
         Many(length) {
             self
@@ -18,6 +18,18 @@ public extension Parser where Input == Substring {
             separator
         }
         .eraseToAnyParser()
+    }
+
+    func many(
+        length: CountingRange = 1...
+    ) -> AnyParser<Input, [Output]> {
+        many(length: length, separator: "")
+    }
+
+    func manyByNewline(
+        length: CountingRange = 1...
+    ) -> AnyParser<Input, [Output]> {
+        many(length: length, separator: "\n")
     }
 
     /**

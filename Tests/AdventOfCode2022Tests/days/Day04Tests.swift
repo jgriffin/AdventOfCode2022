@@ -76,7 +76,7 @@ extension Day04Tests {
         assignmentParser
     }
     
-    static let inputParser = assignmentPairParser.many().skipTrailingNewlines()
+    static let inputParser = assignmentPairParser.manyByNewline().skipTrailingNewlines()
 
     func testAssignmentParser() throws {
         let result = try Self.assignmentParser.parse("2-4")

@@ -158,8 +158,8 @@ extension Day02Tests {
         resultParser
     }
 
-    static let roundsShapeParser = roundShapeParser.many().skipTrailingNewlines()
-    static let roundsResultParser = roundResultParser.many().skipTrailingNewlines()
+    static let roundsShapeParser = roundShapeParser.manyByNewline().skipTrailingNewlines()
+    static let roundsResultParser = roundResultParser.manyByNewline().skipTrailingNewlines()
 
     func testParseShapeExample() throws {
         let result = try Self.roundsShapeParser.parse(Self.example)

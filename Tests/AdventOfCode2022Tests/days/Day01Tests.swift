@@ -61,7 +61,7 @@ extension Day01Tests {
     static let input = resourceURL(filename: "Day01Input.txt")!.readContents()!
 
     static let calorieParser = Int.parser(of: Substring.self)
-    static let elfParser = calorieParser.many()
+    static let elfParser = calorieParser.manyByNewline()
     static let inputParser = elfParser.many(separator: "\n\n").skipTrailingNewlines()
 
     func testParseExample() throws {
