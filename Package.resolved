@@ -1,6 +1,24 @@
 {
   "pins" : [
     {
+      "identity" : "bigint",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/attaswift/BigInt.git",
+      "state" : {
+        "revision" : "0ed110f7555c34ff468e72e1686e59721f2b0da6",
+        "version" : "5.3.0"
+      }
+    },
+    {
+      "identity" : "eulertools",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jgriffin/EulerTools.git",
+      "state" : {
+        "revision" : "6ee962f81d433fb89e7370b6c944dc6a266d62ac",
+        "version" : "0.2.0"
+      }
+    },
+    {
       "identity" : "swift-algorithms",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/apple/swift-algorithms.git",
