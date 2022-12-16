@@ -70,18 +70,12 @@ final class Day09Tests: XCTestCase {
         bridge.applyMovesAndFollows(moves)
         let tailPositions = bridge.history.map { $0.knots.last! }.uniqued().asArray
         
-        let chart = await render(chartPositions(tailPositions))
+        let chart = await chartPositions(tailPositions).renderCGImage()
         XCTAssertNotNil(chart)
     }
 }
 
 extension Day09Tests {
-    @MainActor
-    func render(_ chart: some View) -> CGImage? {
-        let renderer = ImageRenderer(content: chart)
-        return renderer.cgImage
-    }
-    
     func chartPositions(_ positions: [IndexXY]) -> some View {
         Chart {
             ForEach(positions.enumerated().asArray, id: \.offset) { offset, position in
