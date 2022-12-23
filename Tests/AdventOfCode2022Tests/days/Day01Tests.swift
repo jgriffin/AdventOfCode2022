@@ -1,4 +1,4 @@
-@testable import AdventOfCode2022
+import AdventOfCode2022
 import Parsing
 import XCTest
 
