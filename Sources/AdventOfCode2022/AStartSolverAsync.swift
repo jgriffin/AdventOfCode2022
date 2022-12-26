@@ -30,13 +30,13 @@ public actor AStartSolverAsync<State: Hashable> {
 
     public init(
         hScore: @escaping HScorer,
-        neighborGenerator: @escaping NeighborGenerator,
+        neighborGenerator: @escaping (State) async -> some Sequence<State>,
         stepCoster: @escaping StepCoster,
         minimizeScore: Bool,
         isAtGoal: @escaping IsAtGoal
     ) {
         self.hScore = hScore
-        self.neighborGenerator = neighborGenerator
+        self.neighborGenerator = { state in AnySequence(await neighborGenerator(state)) }
         self.stepCoster = stepCoster
         self.isAtGoal = isAtGoal
         self.minimizeScore = minimizeScore
@@ -106,7 +106,8 @@ public actor AStartSolverAsync<State: Hashable> {
     }
     
     func tryNeighbors(_ current: State, currentGScore: Int) async {
-        for neighbor in await neighborGenerator(current) {
+        let neighbors = await neighborGenerator(current)
+        for neighbor in neighbors {
             let stepCost = stepCoster(current, neighbor)
             let neighborGScore = currentGScore + stepCost
 
