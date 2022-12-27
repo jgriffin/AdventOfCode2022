@@ -22,42 +22,34 @@ final class Day15Tests: XCTestCase {
 
     // MARK: - Part 2
 
-    func testDistressBeaconBruteForceExample() throws {
+    func testDistressBeaconPerimeterExample() async throws {
         let scan = try Self.scanParser.parse(Self.example)
         let xyRanges = (x: 0 ..< 21, y: 0 ..< 21)
+        func isInRange(_ xy: IndexXY) -> Bool {
+            xyRanges.x.contains(xy.x) && xyRanges.y.contains(xy.y)
+        }
 
-        let canBeDistressBeacons = product(xyRanges.x, xyRanges.y)
-            .lazy.map { IndexXY(x: $0.first!, y: $0.last!) }
-            .filter { !scan.isInRangeOfSensor($0) }
-            .asSet
+        let intersectionPoints = await scan.beaconPerimeterInteresectionPoints(isInRange: isInRange)
+        let result = intersectionPoints.filter { !scan.isInRangeOfSensor($0) }
 
-        XCTAssertEqual(canBeDistressBeacons.count, 1)
-        XCTAssertEqual(canBeDistressBeacons.first, .init(14, 11))
-        XCTAssertEqual(canBeDistressBeacons.first.flatMap { $0.x * 4_000_000 + $0.y }, 56_000_011)
-    }
-
-    func testDistressBeaconPerimeterExample() throws {
-        let scan = try Self.scanParser.parse(Self.example)
-        let xyRanges = (x: 0 ..< 21, y: 0 ..< 21)
-
-        let perimeterPoints = scan.perimeterPoints()
-            .filter { xyRanges.x.contains($0.x) && xyRanges.y.contains($0.y) }
-        let result = perimeterPoints.filter { !scan.isInRangeOfSensor($0) }
         XCTAssertEqual(result.count, 1)
         XCTAssertEqual(result.first, .init(14, 11))
         XCTAssertEqual(result.first.flatMap { $0.x * 4_000_000 + $0.y }, 56_000_011)
     }
 
-    func testDistressBeaconInput() async throws {
+    func testDistressBeaconPerimeterInput() async throws {
         let scan = try Self.scanParser.parse(Self.input)
         let xyRanges = (x: 0 ..< 4_000_001, y: 0 ..< 4_000_001)
+        func isInRange(_ xy: IndexXY) -> Bool {
+            xyRanges.x.contains(xy.x) && xyRanges.y.contains(xy.y)
+        }
 
-        let perimeterPoints = scan.perimeterPoints()
-            .filter { xyRanges.x.contains($0.x) && xyRanges.y.contains($0.y) }
-        let result = perimeterPoints.filter { !scan.isInRangeOfSensor($0) }
+        let intersectionPoints = await scan.beaconPerimeterInteresectionPoints(isInRange: isInRange)
+        let result = intersectionPoints.filter { !scan.isInRangeOfSensor($0) }
+
         XCTAssertEqual(result.count, 1)
-        XCTAssertEqual(result.first, .init(0, 0))
-        XCTAssertEqual(result.first.flatMap { $0.x * 4_000_000 + $0.y }, 0)
+        XCTAssertEqual(result.first, .init(2_557_297, 3_267_339))
+        XCTAssertEqual(result.first.flatMap { $0.x * 4_000_000 + $0.y }, 10_229_191_267_339)
     }
 }
 
@@ -89,15 +81,25 @@ extension Day15Tests {
             measurements.contains(where: { $0.isInRangeOfSensor(index) })
         }
 
-        func cannotBeDistressBeacons() -> Set<IndexXY> {
-            measurements.map { $0.indicesInRange() }.reduce(Set<IndexXY>()) { $0.union($1) }
-        }
+        func beaconPerimeterInteresectionPoints(isInRange: @escaping (IndexXY) -> Bool) async -> Set<IndexXY> {
+            let measurementCombinations = measurements.combinations(ofCount: 2)
+                .map { (first: $0.first!, second: $0.last!) }
 
-        func perimeterPoints() -> Set<IndexXY> {
-            measurements.lazy.map { $0.manhattenPerimeter() }
-                .reduce(Set<IndexXY>()) { result, next in
-                    result.union(next)
+            return await withTaskGroup(of: Set<IndexXY>.self) { group in
+                for (first, second) in measurementCombinations {
+                    guard IndexXY.manhattanDistance(first.sensor, second.sensor) <=
+                        (first.manhattanDistance + second.manhattanDistance + 1) else { continue }
+
+                    group.addTask {
+                        async let firstPerimeter = first.manhattanPerimeter(isInRange: isInRange)
+                        async let secondPerimeter = second.manhattanPerimeter(isInRange: isInRange)
+
+                        return await firstPerimeter.intersection(secondPerimeter)
+                    }
                 }
+
+                return await group.reduce(Set<IndexXY>()) { result, next in result.union(next) }
+            }
         }
 
         // MARK: helpers
@@ -172,7 +174,7 @@ extension Day15Tests {
         /**
          walk of the perimeter
          */
-        func manhattenPerimeter() -> Set<IndexXY> {
+        func manhattanPerimeter(isInRange: (IndexXY) -> Bool) async -> Set<IndexXY> {
             let top = IndexXY(sensor.x, sensor.y + manhattanDistance + 1)
             let right = IndexXY(sensor.x + manhattanDistance + 1, sensor.y)
             let bottom = IndexXY(sensor.x, sensor.y - manhattanDistance - 1)
@@ -180,30 +182,42 @@ extension Day15Tests {
 
             // Walk clockwise from top
             var current = top
-            var path: [IndexXY] = [current]
+            var path: [IndexXY] = []
+
+            if isInRange(current) {
+                path.append(current)
+            }
 
             // downRight
             repeat {
                 current += .init(1, -1)
-                path.append(current)
+                if isInRange(current) {
+                    path.append(current)
+                }
             } while current != right
 
             // downLeft
             repeat {
                 current += .init(-1, -1)
-                path.append(current)
+                if isInRange(current) {
+                    path.append(current)
+                }
             } while current != bottom
 
             // upLeft
             repeat {
                 current += .init(-1, 1)
-                path.append(current)
+                if isInRange(current) {
+                    path.append(current)
+                }
             } while current != left
 
             // upRight
             repeat {
                 current += .init(1, 1)
-                path.append(current)
+                if isInRange(current) {
+                    path.append(current)
+                }
             } while current != top
 
             return path.asSet
