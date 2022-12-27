@@ -12,7 +12,7 @@ final class Day05Tests: XCTestCase {
         let tops = stacks.stacks.map { $0.last! }.joined()
         XCTAssertEqual(tops, "MCD")
     }
-    
+
     func testMoveManyCratesInput() throws {
         var (stacks, moves) = try Self.inputParser.parse(Self.input)
         moves.forEach { move in
@@ -32,7 +32,7 @@ final class Day05Tests: XCTestCase {
         let tops = stacks.stacks.map { $0.last! }.joined()
         XCTAssertEqual(tops, "CMZ")
     }
-    
+
     func testMoveCratesInput() throws {
         var (stacks, moves) = try Self.inputParser.parse(Self.input)
         moves.forEach { move in
@@ -47,14 +47,14 @@ final class Day05Tests: XCTestCase {
 extension Day05Tests {
     typealias Crate = Substring
     typealias Stack = [Crate]
-    
+
     struct Stacks: Equatable {
         var stacks: [Stack]
-        
+
         init(stacks: [Stack]) {
             self.stacks = stacks
         }
-        
+
         init(stackRows: [[Crate?]]) {
             let stackCount = stackRows.map(\.count).max()!
             var stacks = Array(repeating: Stack(), count: stackCount)
@@ -65,30 +65,30 @@ extension Day05Tests {
                     }
                 }
             }
-            
+
             self.stacks = stacks.map { $0.reversed() }
         }
-        
+
         mutating func applyMove(_ move: MoveStep) {
             for _ in 0 ..< move.count {
                 stacks[move.to - 1].append(stacks[move.from - 1].popLast()!)
             }
         }
-        
+
         mutating func applyMoveMany(_ move: MoveStep) {
             stacks[move.to - 1].append(contentsOf: stacks[move.from - 1].suffix(move.count))
             stacks[move.from - 1].removeLast(move.count)
         }
     }
-    
+
     struct MoveStep: Equatable {
         let count: Int
         let from: Int
         let to: Int
     }
-        
+
     static let input = resourceURL(filename: "Day05Input.txt")!.readContents()!
-    
+
     static var example: String {
         """
             [D]
@@ -102,15 +102,15 @@ extension Day05Tests {
         move 1 from 1 to 2
         """
     }
-    
+
     // MARK: - parser
-    
+
     static let crateParser = Parse {
         "["
         Prefix(1, while: { ("A" ... "Z").contains($0) })
         "]"
     }
-    
+
     static let stackRowParser = OneOf {
         "   ".map { nil as Crate? }
         crateParser.map { $0 as Crate? }
@@ -118,7 +118,7 @@ extension Day05Tests {
 
     static let stacksParser = stackRowParser.manyByNewline()
         .map { Stacks(stackRows: $0) }
-    
+
     static let moveStepParser = Parse {
         MoveStep(count: $0, from: $1, to: $2)
     } with: {
@@ -132,9 +132,9 @@ extension Day05Tests {
 
     static let inputParser = Parse {
         stacksParser
-        
+
         "\n"
-        
+
         Skip {
             " "
             Parse {
@@ -143,12 +143,12 @@ extension Day05Tests {
             }.many()
             "\n"
         }
-        
+
         "\n"
-        
+
         moveStepParser.manyByNewline()
     }.skipTrailingNewlines()
-    
+
     func testStackRowParser() throws {
         let input = try Self.stackRowParser.parse("[Z] [M] [P]")
         XCTAssertEqual(input, ["Z", "M", "P"])
@@ -159,7 +159,7 @@ extension Day05Tests {
         XCTAssertEqual(stacks.stacks.count, 3)
         XCTAssertEqual(steps.count, 4)
     }
-    
+
     func testStackRowParserInput() throws {
         let (stacks, steps) = try Self.inputParser.parse(Self.input)
         XCTAssertEqual(stacks.stacks.count, 9)

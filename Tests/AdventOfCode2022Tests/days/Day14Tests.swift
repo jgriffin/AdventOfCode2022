@@ -41,7 +41,7 @@ final class Day14Tests: XCTestCase {
             let chart = await cave.chart.renderCGImage(scale: 5)
             XCTAssertNotNil(chart)
         }
-        
+
         XCTAssertEqual(cave.sand.count, 93)
 
         let chart = await cave.chart.renderCGImage(scale: 5)
@@ -72,7 +72,7 @@ extension Day14Tests {
             let rocks = Self.digitizePaths(paths)
             self.rocks = rocks
             self.addFloor = addFloor
-            self.rockBottom = rocks.map(\.y).max()! + (addFloor ? 2 : 0)
+            rockBottom = rocks.map(\.y).max()! + (addFloor ? 2 : 0)
         }
 
         let start = IndexXY(500, 0)

@@ -1,15 +1,11 @@
 //
-//
-// Created by John Griffin on 1/31/21
+// Created by John Griffin on 12/26/22
 //
 
-import EulerTools
 import Foundation
 import HeapModule
 
-public struct AStarSolverAsync<State: Hashable,
-    NeighborStates: Sequence> where NeighborStates.Element == State
-{
+public actor AStartSolverAsync<State: Hashable> {
     // HScorer
     // heuristic function that estimates the cost of the cheapest path from n to the goal.
     // A* terminates when the path it chooses to extend is a path from start to goal or
@@ -21,22 +17,126 @@ public struct AStarSolverAsync<State: Hashable,
     public typealias HScorer = (_ state: State) async -> Int
 
     // return the legal moves from a state
-    public typealias NeighborStatesGenerator = (_ state: State) async -> NeighborStates
+    public typealias NeighborGenerator = (_ state: State) async -> AnySequence<State>
 
     // return the legal moves from a state
     public typealias StepCoster = (_ from: State, _ to: State) -> Int
 
-    let hScorer: HScorer
-    let neighborGenerator: NeighborStatesGenerator
-    let stepCoster: StepCoster?
+    // returns true if we should stop
+    // getCost can be used to get the co
+    public typealias IsAtGoal = (State) -> Bool
 
-    struct PriorityNode<State>: Comparable
-    {
+    // MARK: - initialization
+
+    public init(
+        hScore: @escaping HScorer,
+        neighborGenerator: @escaping NeighborGenerator,
+        stepCoster: @escaping StepCoster,
+        minimizeScore: Bool,
+        isAtGoal: @escaping IsAtGoal
+    ) {
+        self.hScore = hScore
+        self.neighborGenerator = neighborGenerator
+        self.stepCoster = stepCoster
+        self.isAtGoal = isAtGoal
+        self.minimizeScore = minimizeScore
+    }
+
+    // MARK: - dependencies
+
+    let hScore: HScorer
+    let neighborGenerator: NeighborGenerator
+    let stepCoster: StepCoster
+    let isAtGoal: IsAtGoal
+    let minimizeScore: Bool
+
+    // MARK: - internal state
+
+    var openSet = Set<State>()
+    var closedSet = Set<State>()
+
+    var cameFrom = [State: State]()
+    var gScore = [State: Int]()
+    var fScore = [State: Int]()
+
+    // fScoreQueue
+    // updating value priorities is a little expensive,
+    // so we'll just allow extra (higher) priorities that are no longer open
+    var fScoreQueue = Heap<PriorityNode<State>>()
+
+    // MARK: - solve
+
+    public typealias Solution = (cost: Int, path: [State])
+    var bestSoFar: Solution?
+
+    public func solve(start: State) async -> AsyncStream<Solution> {
+        openSet.insert(start)
+        gScore[start] = 0
+        
+        let hScore = await hScore(start)
+        fScore[start] = hScore
+        fScoreQueue.insert(.init(start, priority: hScore))
+
+        return AsyncStream(Solution.self) { continuation in
+            Task {
+                while let current = bestOpenFScore() {
+                    let currentGScore = gScore[current]!
+
+                    if isAtGoal(current) {
+                        if minimizeScore ?
+                            currentGScore < bestSoFar?.cost ?? .max :
+                            currentGScore > bestSoFar?.cost ?? .min
+                        {
+                            let path = reconstuctPath(to: current, cameFrom: cameFrom)
+                            bestSoFar = (currentGScore, path)
+                            continuation.yield(bestSoFar!)
+                        }
+                    }
+
+                    openSet.remove(current)
+
+                    await tryNeighbors(current, currentGScore: currentGScore)
+
+                    closedSet.insert(current)
+                }
+                print("all solutions explored")
+                continuation.finish()
+            }
+        }
+    }
+    
+    func tryNeighbors(_ current: State, currentGScore: Int) async {
+        for neighbor in await neighborGenerator(current) {
+            let stepCost = stepCoster(current, neighbor)
+            let neighborGScore = currentGScore + stepCost
+
+            guard minimizeScore ?
+                neighborGScore < gScore[neighbor, default: .max] :
+                neighborGScore > gScore[neighbor, default: .min]
+            else {
+                continue
+            }
+
+            let neighborHScore = await hScore(neighbor)
+            let neighborFScore = neighborGScore + neighborHScore
+
+            cameFrom[neighbor] = current
+            gScore[neighbor] = neighborGScore
+            fScore[neighbor] = neighborFScore
+            fScoreQueue.insert(.init(neighbor, priority: neighborFScore))
+
+            // Might already be in the open set
+            openSet.insert(neighbor)
+        }
+    }
+
+    // MARK: - helpers
+
+    struct PriorityNode<State>: Comparable {
         let state: State
         let priority: Int
 
-        init(_ state: State, priority: Int)
-        {
+        init(_ state: State, priority: Int) {
             self.state = state
             self.priority = priority
         }
@@ -45,126 +145,19 @@ public struct AStarSolverAsync<State: Hashable,
         static func == (lhs: Self, rhs: Self) -> Bool { lhs.priority == rhs.priority }
     }
 
-    public init(hScorer: @escaping HScorer,
-                neighborGenerator: @escaping NeighborStatesGenerator,
-                stepCoster: StepCoster? = nil)
-    {
-        self.hScorer = hScorer
-        self.neighborGenerator = neighborGenerator
-        self.stepCoster = stepCoster
+    func bestOpenFScore() -> State? {
+        var nextState: State?
+        repeat {
+            nextState = (minimizeScore ? fScoreQueue.popMin() : fScoreQueue.popMax())?.state
+        } while nextState.flatMap { !openSet.contains($0) } == true
+
+        return nextState
     }
 
-    // MARK: Solve
-
-    public func solve(from start: State,
-                      goal: State) async -> [State]?
-    {
-        await solve(from: start, minimizeScore: true, isAtGoal: { $0 == goal })
-    }
-
-    public func solve(from start: State,
-                      minimizeScore: Bool,
-                      isAtGoal: (State) -> Bool) async -> [State]?
-    {
-        var openSet = Set<State>([start])
-        var closedSet = Set<State>()
-
-        var cameFrom = [State: State]()
-
-        // cheapest path known from start so far
-        var gScore: [State: Int] = [start: 0]
-
-        // For node n, fScore[n] := gScore[n] + h(n).
-        // fScore[n] represents our current best guess as to
-        // how short a path from start to finish can be if it goes through n.
-        var fScore: [State: Int] = [start: await hScorer(start)]
-
-        // fScoreQueue
-        // updating value priorities is a little expensive,
-        // so we'll just allow extra (higher) priorities that are no longer open
-        var fScoreQueue = Heap<PriorityNode<State>>()
-        fScoreQueue.insert(.init(start, priority: fScore[start]!))
-
-        func bestOpenFScore() -> State?
-        {
-            while let nextState = (minimizeScore ? fScoreQueue.popMin() : fScoreQueue.popMax())?.state
-            {
-                guard openSet.contains(nextState)
-                else
-                { continue
-                }
-                return nextState
-            }
-            return nil
-        }
-
-        // take lowest fScore
-        while let current = bestOpenFScore()
-        {
-            if isAtGoal(current)
-            {
-                return reconstuctPath(to: current,
-                                      cameFrom: cameFrom)
-            }
-
-            openSet.remove(current)
-
-            let neighbors = await neighborGenerator(current)
-
-            let currentGScore = gScore[current]!
-
-            await withTaskGroup(of: (state: State, gScore: Int, hStore: Int).self)
-            { group in
-                for neighbor in neighbors
-                {
-                    group.addTask
-                    {
-                        let cost = stepCoster.map { $0(current, neighbor) } ?? 1
-                        let neighborGScore = currentGScore + cost
-                        let neighborHScore = await hScorer(neighbor)
-                        return (neighbor, neighborGScore, neighborHScore)
-                    }
-                }
-
-                var newNeighbors: [State] = []
-
-                for await neighbor in group
-                {
-                    guard minimizeScore ?
-                        neighbor.gScore < gScore[neighbor.state, default : .max]:
-                        neighbor.gScore > gScore[neighbor.state, default: .min]
-                    else
-                    {
-                        continue
-                    }
-
-                    cameFrom[neighbor.state] = current
-                    gScore[neighbor.state] = neighbor.gScore
-
-                    let neighborFScore = neighbor.gScore + neighbor.hStore
-                    fScore[neighbor.state] = neighborFScore
-                    fScoreQueue.insert(.init(neighbor.state, priority: neighborFScore))
-
-                    newNeighbors.append(neighbor.state)
-                }
-
-                // Might already be in the open set
-                openSet.formUnion(newNeighbors)
-            }
-
-            closedSet.insert(current)
-        }
-
-        print("solutions not found")
-        return nil
-    }
-
-    func reconstuctPath(to: State, cameFrom: [State: State]) -> [State]
-    {
+    func reconstuctPath(to: State, cameFrom: [State: State]) -> [State] {
         var path = [to]
         var current = to
-        while let from = cameFrom[current]
-        {
+        while let from = cameFrom[current] {
             path.append(from)
             current = from
         }

@@ -35,7 +35,7 @@ final class Day11Tests: XCTestCase {
         var barrel = Barrel(monkeys: try Self.inputParser.parse(Self.input))
         try barrel.doRounds(worryDecay: 3, worryLimit: barrel.lcmMonkeyDivisor, until: 20)
 
-        XCTAssertEqual(barrel.monkeyBusiness, 182293)
+        XCTAssertEqual(barrel.monkeyBusiness, 182_293)
     }
 
     // MARK: - Part 2
@@ -63,15 +63,15 @@ final class Day11Tests: XCTestCase {
             try barrel.doRounds(worryDecay: nil, worryLimit: barrel.lcmMonkeyDivisor, until: check.afterRound)
             XCTAssertEqual(barrel.inspections, check.inspections)
         }
-        XCTAssertEqual(barrel.monkeyBusiness, 2713310158)
+        XCTAssertEqual(barrel.monkeyBusiness, 2_713_310_158)
     }
 
     func testNoDecayInput() throws {
         var barrel = Barrel(monkeys: try Self.inputParser.parse(Self.input))
-        XCTAssertEqual(barrel.lcmMonkeyDivisor, 9699690)
+        XCTAssertEqual(barrel.lcmMonkeyDivisor, 9_699_690)
 
         try barrel.doRounds(worryDecay: nil, worryLimit: barrel.lcmMonkeyDivisor, until: 10000)
-        XCTAssertEqual(barrel.monkeyBusiness, 54832778815)
+        XCTAssertEqual(barrel.monkeyBusiness, 54_832_778_815)
     }
 }
 
@@ -144,7 +144,7 @@ extension Day11Tests {
             self.toMonkeyFalse = toMonkeyFalse
 
             self.items = items
-            self.inspections = 0
+            inspections = 0
         }
     }
 

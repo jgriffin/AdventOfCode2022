@@ -25,7 +25,7 @@ struct Chart_Previews: PreviewProvider {
         }
         .chartXScale(domain: 0 ... 10)
         .chartYScale(domain: 0 ... 10)
-        .chartSymbolSizeScale(domain: 0...10, range: 0...1, type: .linear)
+        .chartSymbolSizeScale(domain: 0 ... 10, range: 0 ... 1, type: .linear)
         .chartXAxis {
             AxisMarks(values: .stride(by: 1)) {
                 AxisGridLine()

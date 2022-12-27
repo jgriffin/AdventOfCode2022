@@ -13,23 +13,23 @@ final class Day10Tests: XCTestCase {
         XCTAssertEqual(states.count, 4)
         XCTAssertEqual(states.last, .init(cycle: 6, x: -1))
     }
-    
+
     func testStatesLargerExample() async throws {
         let instructions = try Self.instructionsParser.parse(Self.largerExample)
         let states = instructions.reductions(State()) { $0.applying($1) }
-        
+
         XCTAssertEqual(states.count, 147)
         XCTAssertEqual(states.last, .init(cycle: 241, x: 17))
     }
-    
+
     func testStatesInput() throws {
         let instructions = try Self.instructionsParser.parse(Self.input)
         let states = instructions.reductions(State()) { $0.applying($1) }
-        
+
         XCTAssertEqual(states.count, 138)
         XCTAssertEqual(states.last, .init(cycle: 241, x: 32))
     }
-    
+
     func testSignalStrengthsLargerExample() throws {
         let instructions = try Self.instructionsParser.parse(Self.largerExample)
         let states = instructions.reductions(State()) { $0.applying($1) }
@@ -45,11 +45,11 @@ final class Day10Tests: XCTestCase {
             .init(cycle: 180, x: 16),
             .init(cycle: 220, x: 18),
         ])
-        
+
         XCTAssertEqual(strengths, [420, 1140, 1800, 2940, 2880, 3960])
         XCTAssertEqual(strengths.reduce(0,+), 13140)
     }
-    
+
     func testSignalStrengthsInput() throws {
         let instructions = try Self.instructionsParser.parse(Self.input)
         let states = instructions.reductions(State()) { $0.applying($1) }
@@ -60,9 +60,9 @@ final class Day10Tests: XCTestCase {
         XCTAssertEqual(strengths, [240, 240, 3900, 3080, 3060, 4620])
         XCTAssertEqual(strengths.reduce(0,+), 15140)
     }
-    
+
     // MARK: - Part 2
-    
+
     func testCRTOutputLargerExample() throws {
         let instructions = try Self.instructionsParser.parse(Self.largerExample)
         let states = instructions.reductions(State()) { $0.applying($1) }
@@ -106,31 +106,31 @@ final class Day10Tests: XCTestCase {
                 slice.map { i in
                     let position = i % 40
                     let state = states.stateForCycle(i + 1)
-                    return ((position - 1)...(position + 1)).contains(state.x) ? "#" : "."
+                    return ((position - 1) ... (position + 1)).contains(state.x) ? "#" : "."
                 }
                 .joined()
             }
             .joined(separator: "\n")
     }
-    
+
     // MARK: - chart
-    
+
     struct StateChart: View {
         let states: [Day10Tests.State]
-        
+
         var body: some View {
             Chart {
                 ForEach(states.indices, id: \.self) { index in
                     PointMark(x: .value("cycle", states[index].cycle),
                               y: .value("x", states[index].x))
                 }
-                ForEach(0...240, id: \.self) { cycle in
+                ForEach(0 ... 240, id: \.self) { cycle in
                     LineMark(x: .value("cycle", cycle),
                              y: .value("p", cycle % 40))
                 }
             }
-            .chartXScale(domain: 0...240, range: .plotDimension(padding: 10))
-            .chartYScale(domain: 0...40, range: .plotDimension(padding: 10))
+            .chartXScale(domain: 0 ... 240, range: .plotDimension(padding: 10))
+            .chartYScale(domain: 0 ... 40, range: .plotDimension(padding: 10))
             .chartXAxis {
                 AxisMarks(values: .stride(by: 1)) {
                     AxisTick()
@@ -158,11 +158,11 @@ final class Day10Tests: XCTestCase {
             .frame(width: 2000, height: 400)
         }
     }
-    
+
     func testChartLargerExample() async throws {
         let instructions = try Self.instructionsParser.parse(Self.largerExample)
         let states = instructions.reductions(State()) { $0.applying($1) }.fillCycles()
-        
+
         let chart = await StateChart(states: states).renderCGImage(scale: 2)
         XCTAssertNotNil(chart)
     }
@@ -172,9 +172,9 @@ extension Day10Tests {
     struct State: Equatable, CustomStringConvertible {
         var cycle: Int = 1
         var x: Int = 1
-        
+
         var signalStrength: Int { cycle * x }
-        
+
         func applying(_ instruction: Instruction) -> State {
             switch instruction {
             case .noop:
@@ -183,10 +183,10 @@ extension Day10Tests {
                 return .init(cycle: cycle + 2, x: x + value)
             }
         }
-        
+
         var description: String { "(cycle: \(cycle), x: \(x))" }
     }
-    
+
     enum Instruction: Equatable {
         case noop
         case addX(Int)
@@ -198,7 +198,7 @@ extension Array where Element == Day10Tests.State {
         guard let best = last(where: { $0.cycle <= cycle }) else { fatalError() }
         return .init(cycle: cycle, x: best.x)
     }
-    
+
     func fillCycles() -> [Day10Tests.State] {
         (0 ..< count).map { stateForCycle($0 + 1) }
     }
@@ -206,16 +206,16 @@ extension Array where Element == Day10Tests.State {
 
 extension Day10Tests {
     static let input = resourceURL(filename: "Day10Input.txt")!.readContents()!
-    
+
     static let simpleExample: String =
         """
         noop
         addx 3
         addx -5
         """
-    
+
     // MARK: - parser
-    
+
     static let instructionParser = OneOf {
         "noop".map { Instruction.noop }
         Parse {
@@ -223,15 +223,15 @@ extension Day10Tests {
             Int.parser()
         }.map { Instruction.addX($0) }
     }
-    
+
     static let instructionsParser = instructionParser.manyByNewline().skipTrailingNewlines()
-    
+
     func testParseSimpleExample() throws {
         let instructions = try Self.instructionsParser.parse(Self.simpleExample)
         XCTAssertEqual(instructions.count, 3)
         XCTAssertEqual(instructions.last, .addX(-5))
     }
-    
+
     func testParseLargerExample() throws {
         let instructions = try Self.instructionsParser.parse(Self.largerExample)
         XCTAssertEqual(instructions.count, 146)
@@ -243,7 +243,7 @@ extension Day10Tests {
         XCTAssertEqual(instructions.count, 137)
         XCTAssertEqual(instructions.suffix(3), [.noop, .noop, .noop])
     }
-    
+
     static var largerExample: String {
         """
         addx 15

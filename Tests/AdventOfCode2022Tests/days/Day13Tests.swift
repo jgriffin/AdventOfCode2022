@@ -132,17 +132,15 @@ extension Day13Tests {
 
     // MARK: - parser
 
-    static var valueParser: AnyParser<Substring, Value> = {
-        OneOf {
-            Int.parser().map { Value.integer($0) }
-            Parse {
-                "["
-                Lazy { valueParser.many(length: 0..., separator: ",") }
-                "]"
-            }.map { Value.list($0) }
-        }
-        .eraseToAnyParser()
-    }()
+    static var valueParser: AnyParser<Substring, Value> = OneOf {
+        Int.parser().map { Value.integer($0) }
+        Parse {
+            "["
+            Lazy { valueParser.many(length: 0..., separator: ",") }
+            "]"
+        }.map { Value.list($0) }
+    }
+    .eraseToAnyParser()
 
     static let pairParser = Parse(Pair.init) {
         valueParser
