@@ -4,13 +4,36 @@ import Parsing
 import XCTest
 
 final class Day19Tests: XCTestCase {
+    // MARK: - part 1 - dynamic
+
     func testBestOutputDynamicExample1() async throws {
         let input = try Self.inputParser.parse(Self.example)
         let blueprint1 = input.first!
 
         let result = blueprint1.bestGeodeOutputDynamic()
-        XCTAssertEqual(result, 9)
+        XCTAssertEqual(result.geodes, 9)
     }
+
+    func testBestOutputDynamicExample() async throws {
+        let blueprints = try Self.inputParser.parse(Self.example)
+        let results = await Blueprint.geodeOutputForBlueprints(blueprints)
+
+        let best = results.max(by: { lhs, rhs in lhs.geodes < rhs.geodes })
+        XCTAssertEqual(best, .init(id: 2, geodes: 12))
+
+        let totalQuality = results.map(\.qualityLevel).reduce(0,+)
+        XCTAssertEqual(totalQuality, 33)
+    }
+
+    func testBestOutputDynamicInput() async throws {
+        let blueprints = try Self.inputParser.parse(Self.input)
+        let results = await Blueprint.geodeOutputForBlueprints(blueprints)
+
+        let totalQuality = results.map(\.qualityLevel).reduce(0,+)
+        XCTAssertEqual(totalQuality, 1616)
+    }
+
+    // MARK: - part 1 - A*
 
     func testBestOutputAStarExample1() async throws {
         let input = try Self.inputParser.parse(Self.example)
@@ -20,59 +43,34 @@ final class Day19Tests: XCTestCase {
         XCTAssertEqual(result?.cost, 9)
     }
 
-    struct State: Hashable, Updatable, CustomStringConvertible {
-        var minutesRemaining: Int
-        var robotsOfType: [Material: Int]
-        var resources: [Material: Int]
+    func testBestOutputAStarInput1() async throws {
+        let input = try Self.inputParser.parse(Self.input)
+        let blueprint1 = input.first!
 
-        func nextNoBuilding() -> State? {
-            updating {
-                $0.minutesRemaining -= 1
-                $0.resources.merge(robotsOfType) { lhs, rhs in lhs + rhs }
-            }
-        }
+        let result = await blueprint1.bestGeodeOutputAStar()
+        XCTAssertEqual(result?.cost, 9)
+    }
+}
 
-        func afterBuilding(_ robot: Robot) -> State? {
-            guard hasResourcesFor(robot) else { return nil }
-
-            return updating {
-                $0.minutesRemaining -= 1
-                $0.resources.merge(robotsOfType) { lhs, rhs in lhs + rhs }
-                
-                $0.robotsOfType[robot.type, default: 0] += 1
-                $0.resources.merge(robot.requires) { lhs, rhs in lhs - rhs }
-            }
-        }
-
-        func hasResourcesFor(_ robot: Robot) -> Bool {
-            robot.requires.allSatisfy { material, amount in
-                amount <= resources[material, default: 0]
-            }
-        }
-
-        var description: String {
-            "mins: \(minutesRemaining) - robots: \(robotsOfType.description) resources: \(resources.description)"
-        }
-
-        static let initial = State(minutesRemaining: 24, robotsOfType: [.ore: 1], resources: [:])
+extension Day19Tests {
+    struct GeodeOutput: Equatable {
+        let id: Blueprint.ID
+        let geodes: Int
+        var qualityLevel: Int { id * geodes }
     }
 
     struct Blueprint: Identifiable, Equatable {
         let id: Int
         let robots: [Robot]
+        let maxNeedByMaterial: [Material: Int]
 
-        func bestGeodeOutputDynamic() -> Int {
-            let bestForState: (State) -> Int = memoize { recurse, state in
-                guard state.minutesRemaining > 0 else {
-                    return state.resources[.geode] ?? 0
+        init(id: Int, robots: [Robot]) {
+            self.id = id
+            self.robots = robots
+            self.maxNeedByMaterial = robots.map(\.requires)
+                .reduce([:]) { result, requires in
+                    result.merging(requires) { lhs, rhs in max(lhs, rhs) }
                 }
-
-                let neighbors = neighborsOf(state)
-                let bests = neighbors.map(recurse)
-                let best = bests.max() ?? 0
-                return best
-            }
-            return bestForState(.initial)
         }
 
         func bestGeodeOutputAStar() async -> (cost: Int, path: [State])? {
@@ -81,7 +79,8 @@ final class Day19Tests: XCTestCase {
                 neighborGenerator: neighborsOf,
                 stepCoster: stepCost,
                 minimizeScore: false,
-                isAtGoal: { $0.minutesRemaining == 0 })
+                isAtGoal: { $0.minutesRemaining == 0 }
+            )
 
             var best: AStartSolverAsync<State>.Solution?
             for await solution in await solver.solve(start: .initial) {
@@ -95,39 +94,106 @@ final class Day19Tests: XCTestCase {
         func hScore(_ state: State) -> Int {
             guard state.minutesRemaining > 0 else { return 0 }
 
-            // initial boost
-            let initial = State.initial.minutesRemaining - state.minutesRemaining
-            if initial < 5 {
-                return 1
-            }
-
-            let typeAndFactor: [(type: Material, factor: Int)] = [
-                (.geode, 1),
-                (.obsidian, 10),
-//                (.clay, 20),
-//                (.ore, 40),
-            ]
-
-            return typeAndFactor.reduce(0) { result, typeAndFactor in
-                let quotRemain = state.robotsOfType[typeAndFactor.type, default: 0].quotientAndRemainder(dividingBy: typeAndFactor.factor)
-                let factor = quotRemain.quotient + (quotRemain.remainder > 0 ? 1 : 0)
-                return result + factor * (state.minutesRemaining - 1)
-            }
+            let geodeScore = state.robotsOfType[.geode, default: 0] * state.minutesRemaining
+            return geodeScore
         }
 
         func neighborsOf(_ state: State) -> [State] {
             guard state.minutesRemaining > 0 else { return [] }
 
-            var result = robots.compactMap(state.afterBuilding)
-            if let next = state.nextNoBuilding() {
+            // don't produce more than we can ever need
+            let usefulRobots = robots.filter { robot in
+                robot.type == .geode ||
+                    state.robotsOfType[robot.type, default: 0] < maxNeedByMaterial[robot.type, default: 0]
+            }
+
+            var result = usefulRobots.compactMap(state.afterBuilding)
+            if let next = state.noBuildingTilEnd() {
                 result.append(next)
             }
             return result
         }
 
         func stepCost(from: State, to: State) -> Int {
-            from.robotsOfType[.geode, default: 0]
+            from.robotsOfType[.geode, default: 0] * (from.minutesRemaining - to.minutesRemaining)
         }
+
+        // MARK: - dynamic
+
+        func bestGeodeOutputDynamic() -> GeodeOutput {
+            let bestForState: (State) -> Int = memoize { recurse, state in
+                guard state.minutesRemaining > 0 else {
+                    return state.resources[.geode] ?? 0
+                }
+
+                let neighbors = neighborsOf(state)
+                let bests = neighbors.map(recurse)
+                let best = bests.max() ?? 0
+                return best
+            }
+            return GeodeOutput(id: id, geodes: bestForState(.initial))
+        }
+
+        static func geodeOutputForBlueprints(_ blueprints: [Blueprint]) async -> [GeodeOutput] {
+            await withTaskGroup(of: GeodeOutput.self) { group in
+                for blueprint in blueprints {
+                    group.addTask {
+                        blueprint.bestGeodeOutputDynamic()
+                    }
+                }
+
+                return await group.reduce(into: [GeodeOutput]()) { results, result in results.append(result) }
+            }
+        }
+    }
+
+    struct State: Hashable, Updatable, CustomStringConvertible {
+        var minutesRemaining: Int
+        var robotsOfType: [Material: Int]
+        var resources: [Material: Int]
+
+        func afterBuilding(_ robot: Robot) -> State? {
+            let needs = robot.requires
+                .compactMap { material, requires -> (Material, Int)? in
+                    let need = max(0, requires - resources[material, default: 0])
+                    guard need > 0 else { return nil }
+                    return (material, need)
+                }
+
+            var timeBeforeBuilding = 0
+            for (material, count) in needs {
+                guard let rate = robotsOfType[material], rate > 0 else { return nil }
+                let time = (count + rate - 1) / rate
+                if time > timeBeforeBuilding {
+                    timeBeforeBuilding = time
+                }
+            }
+
+            guard timeBeforeBuilding + 1 < minutesRemaining else { return nil }
+
+            return updating {
+                $0.minutesRemaining -= timeBeforeBuilding + 1
+                $0.robotsOfType[robot.type, default: 0] += 1
+                $0.resources = resources
+                    .merging(robotsOfType.mapValues { $0 * (timeBeforeBuilding + 1) }, uniquingKeysWith: +)
+                    .merging(robot.requires, uniquingKeysWith: -)
+            }
+        }
+
+        func noBuildingTilEnd() -> State? {
+            guard minutesRemaining > 0 else { return nil }
+            return State(
+                minutesRemaining: 0,
+                robotsOfType: robotsOfType,
+                resources: resources.merging(robotsOfType.mapValues { $0 * minutesRemaining }, uniquingKeysWith: +)
+            )
+        }
+
+        var description: String {
+            "mins: \(minutesRemaining) - robots: \(robotsOfType.description) resources: \(resources.description)"
+        }
+
+        static let initial = State(minutesRemaining: 24, robotsOfType: [.ore: 1], resources: [:])
     }
 
     struct Robot: Hashable {
