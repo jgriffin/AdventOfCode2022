@@ -2,10 +2,11 @@
 // Created by John Griffin on 12/26/22
 //
 
+import Combine
 import Foundation
 import HeapModule
 
-public actor AStartSolverAsync<State: Hashable> {
+public actor AStarSolverAsync<State: Hashable> {
     // HScorer
     // heuristic function that estimates the cost of the cheapest path from n to the goal.
     // A* terminates when the path it chooses to extend is a path from start to goal or
@@ -69,42 +70,62 @@ public actor AStartSolverAsync<State: Hashable> {
     public typealias Solution = (cost: Int, path: [State])
     var bestSoFar: Solution?
 
-    public func solve(start: State) async -> AsyncStream<Solution> {
+    public func solve(start: State) async -> AnyPublisher<Solution, Never> {
         openSet.insert(start)
         gScore[start] = 0
-        
+
         let hScore = await hScore(start)
         fScore[start] = hScore
         fScoreQueue.insert(.init(start, priority: hScore))
 
-        return AsyncStream(Solution.self) { continuation in
-            Task {
-                while let current = bestOpenFScore() {
-                    let currentGScore = gScore[current]!
+        let output = PassthroughSubject<Solution, Never>()
 
-                    if isAtGoal(current) {
-                        if minimizeScore ?
-                            currentGScore < bestSoFar?.cost ?? .max :
-                            currentGScore > bestSoFar?.cost ?? .min
-                        {
-                            let path = reconstuctPath(to: current, cameFrom: cameFrom)
-                            bestSoFar = (currentGScore, path)
-                            continuation.yield(bestSoFar!)
-                        }
-                    }
-
-                    openSet.remove(current)
-
-                    await tryNeighbors(current, currentGScore: currentGScore)
-
-                    closedSet.insert(current)
+        var task: Task<Void, Never>?
+        task = Task {
+            while let current = bestOpenFScore() {
+                guard !Task.isCancelled else {
+                    output.send(completion: .finished)
+                    return
                 }
-                print("all solutions explored")
-                continuation.finish()
+                let currentGScore = gScore[current]!
+
+                if isAtGoal(current) {
+                    if minimizeScore ?
+                        currentGScore < bestSoFar?.cost ?? .max :
+                        currentGScore > bestSoFar?.cost ?? .min
+                    {
+                        let path = reconstuctPath(to: current, cameFrom: cameFrom)
+                        bestSoFar = (currentGScore, path)
+                        output.send(bestSoFar!)
+                    }
+                }
+
+                openSet.remove(current)
+
+                await tryNeighbors(current, currentGScore: currentGScore)
+
+                closedSet.insert(current)
             }
+            
+            print("all solutions explored")
+            output.send(completion: .finished)
         }
+
+        var subscriberCount = 0
+
+        return output
+            .handleEvents(
+                receiveSubscription: { _ in
+                    subscriberCount += 1
+                },
+                receiveCancel: {
+                    task?.cancel()
+                }
+            )
+            .share()
+            .eraseToAnyPublisher()
     }
-    
+
     func tryNeighbors(_ current: State, currentGScore: Int) async {
         let neighbors = await neighborGenerator(current)
         for neighbor in neighbors {

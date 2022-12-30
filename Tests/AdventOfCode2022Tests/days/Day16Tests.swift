@@ -88,13 +88,7 @@ extension Day16Tests {
             )
 
             let solver = solver()
-            var bestSolution: (cost: Int, path: [State])?
-            for await solution in await solver.solve(start: start) {
-                bestSolution = solution
-                print("bestCostSoFar:", solution.cost)
-                break
-            }
-
+            let bestSolution = await solver.solve(start: start).values.first(where: { _ in true })
             return bestSolution
         }
 
@@ -108,10 +102,9 @@ extension Day16Tests {
 
             let solver = solver()
             var bestSolution: (cost: Int, path: [State])?
-            for await solution in await solver.solve(start: start) {
+            for await solution in await solver.solve(start: start).values.prefix(1) {
                 bestSolution = solution
                 print("bestCostSoFar:", solution.cost)
-                break
             }
 
             return bestSolution
@@ -119,8 +112,8 @@ extension Day16Tests {
 
         // MARK: - AStar helpers
 
-        func solver() -> AStartSolverAsync<State> {
-            AStartSolverAsync(
+        func solver() -> AStarSolverAsync<State> {
+            AStarSolverAsync(
                 hScore: hScore,
                 neighborGenerator: neighbors,
                 stepCoster: stepCost,
@@ -139,9 +132,12 @@ extension Day16Tests {
             guard state.minutesRemaining > 1 else { return 0 }
             var openableValves = nonZeroValves.subtracting(state.open).sorted(by: \.flowRate).reversed().makeIterator()
 
-            let minutes = stride(from: state.minutesRemaining - 1, to: 0, by: -1)
+            let minutes = stride(from: state.minutesRemaining - 1, to: 0, by: -2)
             return minutes.reduce(into: 0) { result, minute in
                 if let next = openableValves.next() {
+                    result += minute * next.flowRate
+                }
+                if state.current2 != nil, let next = openableValves.next() {
                     result += minute * next.flowRate
                 }
             }
