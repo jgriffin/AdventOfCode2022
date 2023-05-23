@@ -206,7 +206,7 @@ extension Day14Tests {
 
     // MARK: - parser
 
-    static let locationParser = Parse(IndexXY.init) {
+    static let locationParser = Parse(input: Substring.self, IndexXY.init) {
         Int.parser()
         ","
         Int.parser()

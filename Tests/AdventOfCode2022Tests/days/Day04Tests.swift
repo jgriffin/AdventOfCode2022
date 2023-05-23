@@ -64,7 +64,7 @@ extension Day04Tests {
 
     // MARK: - parser
 
-    static let assignmentParser = Parse { $0 ... $1 } with: {
+    static let assignmentParser = Parse(input: Substring.self) { $0 ... $1 } with: {
         Int.parser()
         "-"
         Int.parser()

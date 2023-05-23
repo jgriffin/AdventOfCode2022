@@ -389,31 +389,30 @@ extension Day19Tests {
 
     // MARK: - parser
 
-    static let blueprintParser = Parse(Blueprint.init) {
-        "Blueprint "; Int.parser(); ":"; Whitespace()
-        robotParser.many(separator: Whitespace())
-    }
-
-    static let robotParser = Parse { (type: Material, materialAmounts: [(Int, Material)]) -> Robot in
+    static let robotParser: some Parser<Substring.UTF8View, Robot> = Parse(input: Substring.UTF8View.self) {
+        (type: Material, materialAmounts: [(Int, Material)]) -> Robot in
         Robot(type: type,
               requires: Dictionary(uniqueKeysWithValues: materialAmounts.map { ($0.1, $0.0) }))
 
     } with: {
-        Whitespace(); "Each "; materialParser; " robot costs "
-        Parse {
-            Int.parser(); " "; materialParser
-        }.many(separator: " and ")
-        "."
+        Whitespace(); "Each ".utf8; materialParser; " robot costs ".utf8
+        Many { Int.parser(); " ".utf8; materialParser } separator: { " and ".utf8 }
+        ".".utf8
     }
 
-    static let materialParser = OneOf {
-        "ore".map { Material.ore }
-        "clay".map { Material.clay }
-        "obsidian".map { Material.obsidian }
-        "geode".map { Material.geode }
+    static let blueprintParser: some Parser<Substring.UTF8View, Blueprint> = Parse(Blueprint.init) {
+        "Blueprint ".utf8; Int.parser(); ":".utf8; Whitespace()
+        Many { robotParser } separator: { Whitespace() }
     }
 
-    static let inputParser = blueprintParser.many(separator: Whitespace()).skipTrailingNewlines()
+    static let materialParser = OneOf(input: Substring.UTF8View.self, output: Material.self) {
+        "ore".utf8.map { Material.ore }
+        "clay".utf8.map { Material.clay }
+        "obsidian".utf8.map { Material.obsidian }
+        "geode".utf8.map { Material.geode }
+    }
+
+    static let inputParser = Many { blueprintParser } separator: { Whitespace() }.skipTrailingNewlines()
 
     func testParseExample() throws {
         let input = try Self.inputParser.parse(Self.example)

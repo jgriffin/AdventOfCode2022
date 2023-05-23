@@ -59,17 +59,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/pointfreeco/swift-parsing.git",
       "state" : {
-        "revision" : "bc92e84968990b41640214b636667f35b6e5d44c",
-        "version" : "0.10.0"
-      }
-    },
-    {
-      "identity" : "xctest-dynamic-overlay",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/pointfreeco/xctest-dynamic-overlay",
-      "state" : {
-        "revision" : "5a5457a744239896e9b0b03a8e1a5069c3e7b91f",
-        "version" : "0.6.0"
+        "revision" : "c6e2241daa46e5c6e5027a93b161bca6ba692bcc",
+        "version" : "0.12.0"
       }
     }
   ],

@@ -138,7 +138,7 @@ extension Day12Tests {
 
     // MARK: - parser
 
-    static let rowParser = Prefix(1..., while: { $0.isLetter })
+    static let rowParser = Prefix<Substring>(1...) { (ch: Character) in ch.isLetter }
         .map { $0.map(Square.init) }
 
     static let heightMapParser = rowParser.manyByNewline().skipTrailingNewlines().map(HeightMap.init)

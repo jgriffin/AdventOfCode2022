@@ -158,7 +158,7 @@ extension Day20Tests {
     
     // MARK: - parser
     
-    static let inputParser = Int.parser().manyByNewline().skipTrailingNewlines().map(Ring.init)
+    static let inputParser = From(.utf8) { Int.parser() }.manyByNewline().skipTrailingNewlines().map(Ring.init)
     
     func testParseExample() throws {
         let input = try Self.inputParser.parse(Self.example)

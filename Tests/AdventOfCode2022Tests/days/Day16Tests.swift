@@ -244,7 +244,7 @@ extension Day16Tests {
 
     // MARK: - parser
 
-    static let valveIdParser = Parse(Valve.ID.init) {
+    static let valveIdParser = Parse(input: Substring.self, Valve.ID.init) {
         Prefix(2, while: { ("A" ... "Z").contains($0) })
     }
 

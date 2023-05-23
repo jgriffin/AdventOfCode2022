@@ -268,7 +268,7 @@ extension Day22Tests {
     
     static let groveParser = tileParser.many().manyByNewline().map(Grove.init)
     
-    static let stepParser = OneOf {
+    static let stepParser = OneOf(input: Substring.self, output: Step.self) {
         Int.parser().map { Step.forward($0) }
         "L".map { Step.turnLeft }
         "R".map { Step.turnRight }

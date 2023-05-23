@@ -231,7 +231,7 @@ extension Day21Tests {
     
     static let monkeyParser = Parse(Monkey.init) {
         monkeyIdParser; ": "
-        OneOf {
+        OneOf(input: Substring.self, output: Yell.self) {
             Int.parser().map { Yell.number($0) }
             operationParser
         }

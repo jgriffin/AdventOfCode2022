@@ -202,7 +202,7 @@ extension Day18Tests {
 
     // MARK: - parser
 
-    static let index3Parser = Int.parser().many(length: 3, separator: ",").map { Index3($0[0], $0[1], $0[2]) }
+    static let index3Parser = From(.utf8) { Int.parser() }.many(length: 3, separator: ",").map { Index3($0[0], $0[1], $0[2]) }
     static let inputParser = index3Parser.manyByNewline().skipTrailingNewlines()
 
     func testParseExample() throws {

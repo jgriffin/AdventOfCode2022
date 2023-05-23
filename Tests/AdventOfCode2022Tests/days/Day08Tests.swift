@@ -134,7 +134,8 @@ extension Day08Tests {
 
     // MARK: - parser
 
-    static let rowParser = Prefix(1..., while: { $0.isNumber }).map { $0.map { Int(String($0))! }}
+    static let rowParser: some Parser<Substring, [Int]> = Prefix(1..., while: { $0.isNumber })
+        .map { $0.map { Int(String($0))! }}
     static let gridParser = rowParser.manyByNewline().skipTrailingNewlines()
 
     func testParseExample() throws {

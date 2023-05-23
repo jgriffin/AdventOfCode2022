@@ -6,7 +6,7 @@ final class Day11Tests: XCTestCase {
     // MARK: - Part 1
 
     func testDoRoundExample() throws {
-        var barrel = Barrel(monkeys: try Self.inputParser.parse(Self.example))
+        var barrel = try Barrel(monkeys: Self.inputParser.parse(Self.example))
         try barrel.doRound(worryDecay: 3, worryLimit: barrel.lcmMonkeyDivisor)
 
         XCTAssertEqual(barrel.monkeys.map(\.items), [
@@ -18,7 +18,7 @@ final class Day11Tests: XCTestCase {
     }
 
     func test20RoundsExample() throws {
-        var barrel = Barrel(monkeys: try Self.inputParser.parse(Self.example))
+        var barrel = try Barrel(monkeys: Self.inputParser.parse(Self.example))
         try barrel.doRounds(worryDecay: 3, worryLimit: barrel.lcmMonkeyDivisor, until: 20)
 
         XCTAssertEqual(barrel.monkeys.map(\.items), [
@@ -32,10 +32,10 @@ final class Day11Tests: XCTestCase {
     }
 
     func test20RoundsInput() throws {
-        var barrel = Barrel(monkeys: try Self.inputParser.parse(Self.input))
+        var barrel = try Barrel(monkeys: Self.inputParser.parse(Self.input))
         try barrel.doRounds(worryDecay: 3, worryLimit: barrel.lcmMonkeyDivisor, until: 20)
 
-        XCTAssertEqual(barrel.monkeyBusiness, 182_293)
+        XCTAssertEqual(barrel.monkeyBusiness, 182293)
     }
 
     // MARK: - Part 2
@@ -56,22 +56,22 @@ final class Day11Tests: XCTestCase {
             (10000, [52166, 47830, 1938, 52013]),
         ]
 
-        var barrel = Barrel(monkeys: try Self.inputParser.parse(Self.example))
+        var barrel = try Barrel(monkeys: Self.inputParser.parse(Self.example))
         XCTAssertEqual(barrel.lcmMonkeyDivisor, 96577)
 
         for check in checks {
             try barrel.doRounds(worryDecay: nil, worryLimit: barrel.lcmMonkeyDivisor, until: check.afterRound)
             XCTAssertEqual(barrel.inspections, check.inspections)
         }
-        XCTAssertEqual(barrel.monkeyBusiness, 2_713_310_158)
+        XCTAssertEqual(barrel.monkeyBusiness, 2713310158)
     }
 
     func testNoDecayInput() throws {
-        var barrel = Barrel(monkeys: try Self.inputParser.parse(Self.input))
-        XCTAssertEqual(barrel.lcmMonkeyDivisor, 9_699_690)
+        var barrel = try Barrel(monkeys: Self.inputParser.parse(Self.input))
+        XCTAssertEqual(barrel.lcmMonkeyDivisor, 9699690)
 
         try barrel.doRounds(worryDecay: nil, worryLimit: barrel.lcmMonkeyDivisor, until: 10000)
-        XCTAssertEqual(barrel.monkeyBusiness, 54_832_778_815)
+        XCTAssertEqual(barrel.monkeyBusiness, 54832778815)
     }
 }
 
@@ -99,10 +99,10 @@ extension Day11Tests {
                 let monkey = monkeys[i]
                 for item in monkey.items {
                     var worryLevel = try monkey.operation.appliedTo(item)
-                    if let worryDecay = worryDecay {
+                    if let worryDecay {
                         worryLevel /= worryDecay
                     }
-                    if let worryLimit = worryLimit {
+                    if let worryLimit {
                         worryLevel = worryLevel % worryLimit
                     }
 
@@ -204,9 +204,13 @@ extension Day11Tests {
 
     // MARK: - parser
 
-    static let monkeyParser = Parse(Monkey.init) {
+    static let monkeyParser = Parse(input: Substring.self, Monkey.init) {
         Parse { "Monkey "; Int.parser(); ":\n" }
-        Parse { "  Starting items: "; Int.parser().many(separator: ", "); "\n" }
+        Parse {
+            "  Starting items: "
+            Many(1...) { Int.parser() } separator: { ", " }
+            "\n"
+        }
         operationParser
         Parse { "  Test: divisible by "; Int.parser(); "\n" }
         Parse { "    If true: throw to monkey "; Int.parser(); "\n" }
