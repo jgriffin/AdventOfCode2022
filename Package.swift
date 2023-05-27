@@ -17,7 +17,7 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/pointfreeco/swift-parsing.git", from: "0.12.0"),
         .package(url: "https://github.com/apple/swift-algorithms.git", from: "1.0.0"),
-        .package(url: "https://github.com/jgriffin/EulerTools.git", from: "0.2.1"),
+        .package(url: "https://github.com/jgriffin/EulerTools.git", from: "0.2.3"),
         .package(url: "https://github.com/apple/swift-collections.git", branch: "release/1.1"),
     ],
     targets: [

@@ -2,6 +2,7 @@ import AdventOfCode2022
 import Algorithms
 import Parsing
 import XCTest
+import EulerTools
 
 final class Day08Tests: XCTestCase {
     // MARK: - Part 1
@@ -24,7 +25,7 @@ final class Day08Tests: XCTestCase {
         let grid = try Self.gridParser.parse(Self.example)
         let visibleIndices = visibleIndices(grid)
 
-        let score5 = scenicScore(grid, (3, 2))
+        let score5 = scenicScore(grid, .init(3, 2))
         XCTAssertEqual(score5, 8)
 
         let scenicScores = visibleIndices.map { index in scenicScore(grid, index) }
@@ -45,25 +46,25 @@ final class Day08Tests: XCTestCase {
 extension Day08Tests {
     typealias Grid = [[Int]]
 
-    func scenicScore(_ grid: Grid, _ index: Grid.Index2D) -> Int {
+    func scenicScore(_ grid: Grid, _ index: IndexRC) -> Int {
         let scorer = sightLineScorer(grid, treeHeight: grid[index])
 
-        let up = (0 ..< index.row).reversed().map { ($0, index.col) }
-        let left = (0 ..< index.col).reversed().map { (index.row, $0) }
-        let down = ((index.row + 1) ..< grid.count).map { ($0, index.col) }
-        let right = ((index.col + 1) ..< grid[0].count).map { (index.row, $0) }
+        let up = (0 ..< index.r).reversed().map { IndexRC($0, index.c) }
+        let left = (0 ..< index.c).reversed().map { IndexRC(index.r, $0) }
+        let down = ((index.r + 1) ..< grid.count).map { IndexRC($0, index.c) }
+        let right = ((index.c + 1) ..< grid[0].count).map { IndexRC(index.r, $0) }
 
         let scores = [up, left, down, right].map(scorer)
         return scores.reduce(1,*)
     }
 
-    func sightLineScorer(_ grid: Grid, treeHeight: Int) -> ([Grid.Index2D]) -> Int {
-        { (sightLine: [Grid.Index2D]) in
+    func sightLineScorer(_ grid: Grid, treeHeight: Int) -> ([IndexRC]) -> Int {
+        { (sightLine: [IndexRC]) in
             self.scenicScore(grid, treeHeight: treeHeight, sightLine: sightLine)
         }
     }
 
-    func scenicScore(_ grid: Grid, treeHeight: Int, sightLine: [Grid.Index2D]) -> Int {
+    func scenicScore(_ grid: Grid, treeHeight: Int, sightLine: [IndexRC]) -> Int {
         var score = 0
         for index in sightLine {
             score += 1
@@ -74,7 +75,7 @@ extension Day08Tests {
         return score
     }
 
-    func visibleIndices(_ grid: Grid) -> [(row: Int, col: Int)] {
+    func visibleIndices(_ grid: Grid) -> [IndexRC] {
         var visibleTrees = Array(repeating: Array(repeating: false, count: grid[0].count), count: grid.count)
 
         func updateVisble(row: Int, col: Int, tallest: inout Int) {
@@ -116,7 +117,9 @@ extension Day08Tests {
             }
         }
 
-        return product(grid.indices, grid[0].indices).filter { visibleTrees[$0.0][$0.1] }
+        return product(grid.indices, grid[0].indices)
+            .filter { visibleTrees[$0.0][$0.1] }
+            .map { IndexRC($0.0, $0.1) }
     }
 }
 

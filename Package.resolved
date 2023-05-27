@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/jgriffin/EulerTools.git",
       "state" : {
-        "revision" : "86e42b93e65c21a96ac237d4e01a64cf27a906fb",
-        "version" : "0.2.1"
+        "revision" : "5fd0549389f6cc0110b7ab7e128e5cc7f36c1c4b",
+        "version" : "0.2.3"
       }
     },
     {
